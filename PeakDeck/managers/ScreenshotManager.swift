@@ -40,6 +40,12 @@ final class ScreenshotManager: ObservableObject {
     @Published var rect: CGRect = .zero
     @Published var adjusting = false
 
+    // Window detection (WeChat-style): hovering snaps the selection to the
+    // frontmost window; a plain click captures it. Dragging overrides it.
+    @Published var windowHint: String?
+    var windowDetected = false
+    var manualDragStarted = false
+
     // Annotation state (see ScreenshotAnnotations.swift).
     @Published var activeTool: AnnotationTool = .none
     @Published var activeColor: AnnotationColor = .red
@@ -123,17 +129,100 @@ final class ScreenshotManager: ObservableObject {
             guard let self, self.panel != nil else { return event }
             let height = self.panel?.frame.height ?? 0
             // Window coords (bottom-left) → view coords (top-left).
-            self.updateCursor(
-                for: CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y))
+            let viewPoint = CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y)
+            // Hover-detection runs on pure moves and re-checks on press so
+            // a click is always resolved against the window under it.
+            if !self.adjusting, self.dragStart == nil,
+               event.type == .mouseMoved || event.type == .leftMouseDown {
+                self.updateWindowHover(at: viewPoint)
+            }
+            self.updateCursor(for: viewPoint)
             return event
         }
+    }
+
+    // MARK: Window detection (click-to-capture)
+
+    /// Frontmost normal-layer window under the given view point, clamped to
+    /// this screen, plus its owner name. CG's window list is ordered
+    /// front-to-back, so the first containing match is the right one.
+    private func detectedWindow(at point: CGPoint) -> (rect: CGRect, app: String)? {
+        // CGWindowBounds use the Quartz global TOP-LEFT space; convert the
+        // view point and this screen's frame into that space before comparing
+        // (view → screen → global, mirroring capture()'s cgRect math).
+        let mainTop = NSScreen.screens.first?.frame.maxY ?? 0
+        let screenTop = mainTop - screenFrame.maxY
+        let globalPoint = CGPoint(x: point.x + screenFrame.minX, y: point.y + screenTop)
+        let globalScreenRect = CGRect(
+            x: screenFrame.minX, y: screenTop,
+            width: screenFrame.width, height: screenFrame.height)
+        guard let list = CGWindowListCopyWindowInfo(
+            [.excludeDesktopElements, .optionOnScreenOnly], kCGNullWindowID)
+            as? [[String: Any]] else { return nil }
+        let myPID = ProcessInfo.processInfo.processIdentifier
+        for info in list {
+            guard let layer = info[kCGWindowLayer as String] as? Int, layer == 0,
+                  let pid = info[kCGWindowOwnerPID as String] as? Int, pid != myPID,
+                  let bounds = info[kCGWindowBounds as String] as? [String: CGFloat],
+                  let x = bounds["X"], let y = bounds["Y"],
+                  let width = bounds["Width"], let height = bounds["Height"],
+                  width >= 60, height >= 60
+            else { continue }
+            if let alpha = info[kCGWindowAlpha as String] as? CGFloat, alpha < 0.05 { continue }
+            let windowRect = CGRect(x: x, y: y, width: width, height: height)
+            guard windowRect.contains(globalPoint) else { continue }
+            let app = info[kCGWindowOwnerName as String] as? String ?? ""
+            // Clamp to this screen — the frozen snapshot only covers it.
+            let local = windowRect
+                .intersection(globalScreenRect)
+                .offsetBy(dx: -screenFrame.minX, dy: -screenTop)
+            guard local.width >= 40, local.height >= 40 else { continue }
+            return (local, app)
+        }
+        return nil
+    }
+
+    /// Snap the selection to the window under the pointer and remember its
+    /// name for the hint label; cleared when the pointer leaves any window.
+    func updateWindowHover(at point: CGPoint) {
+        if let match = detectedWindow(at: point) {
+            windowDetected = true
+            if rect != match.rect || windowHint != match.app {
+                rect = match.rect
+                windowHint = match.app
+            }
+        } else if windowDetected || !rect.isEmpty {
+            windowDetected = false
+            windowHint = nil
+            rect = .zero
+        }
+    }
+
+    /// The pointer moved ~10pt while hovering a window: switch to manual
+    /// freehand selection from the press origin.
+    func beginManualSelection(at point: CGPoint) {
+        manualDragStarted = true
+        windowDetected = false
+        windowHint = nil
+        dragStart = point
+        adjusting = false
+        rect = CGRect(origin: point, size: .zero)
+    }
+
+    /// Hint shown above the hover-highlighted window.
+    var selectionLabel: String {
+        let size = "\(Int(rect.width)) × \(Int(rect.height))"
+        if let hint = windowHint, !hint.isEmpty {
+            return "\(hint) · \(size)"
+        }
+        return size
     }
 
     /// Arrow by default; crosshair near the corner handles; pointing hand
     /// over the ✓/✗ buttons and the annotation toolbar.
     func updateCursor(for viewPoint: CGPoint) {
         guard adjusting else {
-            NSCursor.arrow.set()
+            NSCursor.crosshair.set()
             return
         }
         for handle in CornerHandle.allCases {
@@ -161,6 +250,7 @@ final class ScreenshotManager: ObservableObject {
     /// records the corner (events may coalesce — never assume a zero-translation
     /// first event), later ones grow the rect.
     func dragUpdated(to point: CGPoint) {
+        manualDragStarted = true
         guard let start = dragStart else {
             dragStart = point
             adjusting = false
@@ -174,6 +264,7 @@ final class ScreenshotManager: ObservableObject {
 
     func dragEnded() {
         dragStart = nil
+        manualDragStarted = false
         // A click without a meaningful drag is not a selection — abort.
         if rect.width < 10 || rect.height < 10 {
             closeOverlay()
@@ -294,8 +385,18 @@ final class ScreenshotManager: ObservableObject {
         let selection = rect
         let frame = screenFrame
         let pendingStrokes = strokes
+        // Render from the frozen snapshot BEFORE tearing the overlay down —
+        // closeOverlay() nils the snapshot, and re-capturing live would let
+        // moving content (streams) leak into the picture.
+        guard let image = renderedCapture(
+            selection: selection, screenFrame: frame, strokes: pendingStrokes)
+        else {
+            Self.debugLog("capture produced no image")
+            closeOverlay()
+            return
+        }
         closeOverlay()
-        capture(rect: selection, screenFrame: frame, strokes: pendingStrokes)
+        store(image: image)
     }
 
     func closeOverlay() {
@@ -315,15 +416,20 @@ final class ScreenshotManager: ObservableObject {
         strokes = []
         strokeStart = nil
         snapshot = nil
+        windowDetected = false
+        windowHint = nil
+        manualDragStarted = false
+
+        // The pointer may already be resting on a window when the shortcut
+        // fires — seed the hover state so a plain click captures right away.
+        let mouse = NSEvent.mouseLocation
+        updateWindowHover(
+            at: CGPoint(x: mouse.x - screenFrame.minX, y: screenFrame.maxY - mouse.y))
     }
 
     // MARK: Capture & store
 
-    private func capture(rect: CGRect, screenFrame: CGRect, strokes: [AnnotationStroke]) {
-        guard let image = renderedCapture(selection: rect, screenFrame: screenFrame, strokes: strokes) else {
-            Self.debugLog("capture produced no image")
-            return
-        }
+    private func store(image: CGImage) {
         let rep = NSBitmapImageRep(cgImage: image)
         guard let png = rep.representation(using: .png, properties: [:]) else { return }
 
@@ -441,9 +547,7 @@ final class ScreenshotManager: ObservableObject {
         return context.makeImage() ?? base
     }
 
-    func imageWidthLabel() -> String {
-        "\(Int(rect.width)) × \(Int(rect.height))"
-    }
+
 
     /// Confirms/cancels button pair position: the selection's bottom-right
     /// corner, clamped to the screen.
@@ -538,6 +642,14 @@ struct ScreenshotOverlayView: View {
                         // No tool: dragging inside the selection moves it.
                         manager.selectionDragged(translation: value.translation)
                     }
+                } else if manager.windowDetected && !manager.manualDragStarted {
+                    // Hover-snapped to a window: a plain click captures it.
+                    // Moving past a small threshold switches to manual drag.
+                    let distance = hypot(value.translation.width, value.translation.height)
+                    if distance > 10 {
+                        manager.beginManualSelection(at: value.startLocation)
+                        manager.dragUpdated(to: value.location)
+                    }
                 } else {
                     manager.dragUpdated(to: value.location)
                 }
@@ -549,6 +661,9 @@ struct ScreenshotOverlayView: View {
                     } else {
                         manager.moveEnded()
                     }
+                } else if manager.windowDetected && !manager.manualDragStarted {
+                    // Click on a highlighted window → capture immediately.
+                    manager.captureSelection()
                 } else {
                     manager.dragEnded()
                 }
@@ -570,8 +685,8 @@ struct ScreenshotOverlayView: View {
             .frame(width: max(0, manager.rect.width), height: max(0, manager.rect.height))
             .position(x: manager.rect.midX, y: manager.rect.midY)
             .overlay(alignment: .bottom) {
-                if manager.adjusting {
-                    Text(manager.imageWidthLabel())
+                if manager.adjusting || manager.windowHint != nil {
+                    Text(manager.selectionLabel)
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 8)

@@ -68,15 +68,6 @@ struct ContentView: View {
             && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
         {
             chinWidth = 640
-        } else if coordinator.sneakPeek.show && Defaults[.inlineHUD]
-            && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery)
-            && vm.notchState == .closed
-        {
-            // The inline HUD REPLACES the whole top bar (two 100pt slots
-            // around a notch-width middle, +4 trailing). Mirror its widest
-            // (hover + gesture drag) state or the popup floor renders
-            // narrower than the bar.
-            chinWidth += 184 + gestureProgress
         } else if !coordinator.expandingView.show && vm.notchState == .closed
             && PomodoroManager.shared.isActive && !vm.hideOnClosed
         {
@@ -106,6 +97,30 @@ struct ContentView: View {
         }
 
         return chinWidth
+        // NOTE: the inline HUD deliberately does NOT participate here. The
+        // volume/brightness HUD appears and disappears while a notification
+        // may still be on screen — if its width fed the notification floor,
+        // the notification card would visibly jump wider and back (the
+        // reported "weird size"). The HUD instead gets room through
+        // `barRowWidth` below.
+    }
+
+    /// Row width the whole closed-notch stack (top bar, notification card,
+    /// classic HUD rows) is laid out in while a notification is displayed.
+    /// The inline HUD may legitimately be wider than the frozen notification
+    /// card — the card stays centered inside this row until the HUD leaves.
+    var barRowWidth: CGFloat {
+        let hudVisible = coordinator.sneakPeek.show
+            && Defaults[.inlineHUD]
+            && coordinator.sneakPeek.type != .music
+            && coordinator.sneakPeek.type != .battery
+            && vm.notchState == .closed
+        // Exact mirror of InlineHUD's intrinsic width (spacing 0): two slots
+        // of 100/88 (+G/2 each) around a (W-20) middle, +4 trailing.
+        let hudWidth: CGFloat = hudVisible
+            ? vm.closedNotchSize.width + (isHovering ? 184 : 160) + gestureProgress
+            : 0
+        return max(notificationRowWidth, hudWidth)
     }
 
     /// Width of the black extension on each side of the hardware notch in the
@@ -380,25 +395,29 @@ struct ContentView: View {
                        }
                     }
                     // When a notification widens the bar, clamp the top bar
-                    // to the notification row's dynamic width and center its
+                    // to the full row width (frozen notification card, or the
+                    // wider inline HUD when one is showing) and center its
                     // content, so the notch-cutout segment stays aligned with
                     // the hardware notch (temperature never slides behind the
-                    // camera) AND the bar width still follows the message
-                    // length. maxWidth:.infinity here would inflate the top
+                    // camera). maxWidth:.infinity here would inflate the top
                     // bar to the whole window proposal (612pt) — a regression
                     // that made every notification full-width.
                     .frame(
-                        maxWidth: vm.notchState == .closed && notificationInterceptor.displayedNotification != nil ? notificationRowWidth : nil,
+                        maxWidth: vm.notchState == .closed && notificationInterceptor.displayedNotification != nil ? barRowWidth : nil,
                         alignment: .center)
 
                       // Notification replacement: the notch EXPANDS DOWNWARD
                       // below the bar to reveal the intercepted notification
                       // (like the volume sneak-peek, but with room for the
                       // title and body — nothing hides behind the camera).
+                      // The card keeps its frozen width while a volume/
+                      // brightness HUD temporarily widens the row — it stays
+                      // centered instead of jumping to the HUD's width.
                       if !coordinator.expandingView.show, vm.notchState == .closed,
                          let record = notificationInterceptor.displayedNotification, !vm.hideOnClosed {
                           NotificationSneakPeekView(record: record, rowWidth: notificationRowWidth)
                               .frame(width: notificationRowWidth, alignment: .leading)
+                              .frame(width: barRowWidth, alignment: .center)
                               .transition(.move(edge: .top).combined(with: .opacity))
                       }
 
@@ -422,6 +441,14 @@ struct ContentView: View {
                               .padding(.bottom, 10)
                               .padding(.leading, 4)
                               .padding(.trailing, 8)
+                              // The HUD's internal maxWidth:.infinity must
+                              // never leak into the leading VStack — with a
+                              // notification on screen it would inflate the
+                              // whole notch to the window proposal. Pin the
+                              // row to the stack width (padding included).
+                              .conditionalModifier(notificationInterceptor.displayedNotification != nil) { view in
+                                  view.frame(width: barRowWidth, alignment: .center)
+                              }
                           }
                           // Old sneak peek music
                           else if coordinator.sneakPeek.type == .music {

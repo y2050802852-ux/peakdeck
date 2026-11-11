@@ -15,7 +15,7 @@ struct InlineHUD: View {
     @Binding var hoverAnimation: Bool
     @Binding var gestureProgress: CGFloat
     var body: some View {
-        HStack {
+        HStack(spacing: 0) {
             HStack(spacing: 5) {
                 Group {
                     switch (type) {

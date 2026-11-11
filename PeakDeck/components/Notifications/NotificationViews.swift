@@ -136,9 +136,12 @@ struct NotificationSneakPeekView: View {
     /// Row width for a record: hugs short notifications at `floor` (the base
     /// bar width) and grows with the text up to `maxWidth`.
     static func contentWidth(for record: NotificationRecord, floor: CGFloat) -> CGFloat {
-        // icon 26 + spacing 10 + time ≈ 42 + horizontal padding 28 + slack 6
+        // icon 26 + spacing 10 + time ≈ 42 + horizontal padding 28 + slack 6.
+        // The floor is clamped to maxWidth first so an unusually wide floor
+        // (battery banner) can never push the card past the readable cap.
         let natural = textWidth(for: record) + 112
-        return min(max(natural, floor), max(floor, maxWidth))
+        let clampedFloor = min(floor, maxWidth)
+        return min(max(natural, clampedFloor), maxWidth)
     }
 
     /// How many lines the body wraps to at the row's final width: short

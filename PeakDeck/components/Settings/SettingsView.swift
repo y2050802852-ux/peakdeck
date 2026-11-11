@@ -2076,7 +2076,7 @@ struct Shortcuts: View {
             } header: {
                 Text("Screenshot")
             } footer: {
-                Text("Dims the screen under the mouse: drag out a selection, fine-tune it with the edge handles, then press Enter or double-click to capture (ESC cancels). Saves to the Desktop and the clipboard history. Screen Recording permission is required on first use.")
+                Text("Freezes the screen, then: hover a window and click to capture it, or drag out a custom region and fine-tune it with the corner handles and annotation tools. ✓ captures, ESC cancels. Results go to the clipboard history and pasteboard. Screen Recording permission is required on first use.")
                     .foregroundStyle(.secondary)
                     .font(.caption)
             }
