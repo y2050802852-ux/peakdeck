@@ -466,7 +466,11 @@ struct ContentView: View {
                                   // skipped and this row would inflate the
                                   // whole notch to the window width.
                                   .conditionalModifier(notificationInterceptor.displayedNotification != nil) { view in
-                                      view.frame(width: barRowWidth, alignment: .center)
+                                      // Height too: the nested GeometryReaders
+                                      // would otherwise absorb the whole
+                                      // remaining VStack height (the reported
+                                      // "very tall" notch).
+                                      view.frame(width: barRowWidth, height: 18, alignment: .center)
                                   }
                               }
                           }
