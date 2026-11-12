@@ -461,6 +461,13 @@ struct ContentView: View {
                                   }
                                   .foregroundStyle(.gray)
                                   .padding(.bottom, 10)
+                                  // GeometryReader accepts ANY proposal: with
+                                  // a notification on screen fixedSize is
+                                  // skipped and this row would inflate the
+                                  // whole notch to the window width.
+                                  .conditionalModifier(notificationInterceptor.displayedNotification != nil) { view in
+                                      view.frame(width: barRowWidth, alignment: .center)
+                                  }
                               }
                           }
                       }
@@ -476,6 +483,9 @@ struct ContentView: View {
                           .padding(.bottom, 10)
                           .transition(.opacity)
                           .animation(.smooth, value: coordinator.hourlyChimeMessage)
+                          .conditionalModifier(notificationInterceptor.displayedNotification != nil) { view in
+                              view.frame(width: barRowWidth, alignment: .center)
+                          }
                       }
                   }
               }
