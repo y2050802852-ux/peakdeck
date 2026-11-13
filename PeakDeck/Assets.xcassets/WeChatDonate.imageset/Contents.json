@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "wechat_donate.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

@@ -1142,6 +1142,7 @@ func lighterColor(from nsColor: NSColor, amount: CGFloat = 0.14) -> Color {
 
 struct About: View {
     @State private var showBuildNumber: Bool = false
+    @State private var showDonateSheet = false
     let updaterController: SPUStandardUpdaterController
     @Environment(\.openWindow) var openWindow
     var body: some View {
@@ -1178,7 +1179,7 @@ struct About: View {
                 HStack(spacing: 30) {
                     Spacer(minLength: 0)
                     Button {
-                        NSWorkspace.shared.open(sponsorPage)
+                        showDonateSheet = true
                     } label: {
                         VStack(spacing: 5) {
                             Image(systemName: "cup.and.saucer.fill")
@@ -1206,9 +1207,29 @@ struct About: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
+            .sheet(isPresented: $showDonateSheet) {
+                VStack(spacing: 14) {
+                    Text("Support Us")
+                        .font(.headline)
+                    Image("WeChatDonate")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: 300)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    Text("Scan with WeChat to support the developer")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Button("Done") {
+                        showDonateSheet = false
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+                .padding(24)
+                .frame(minWidth: 360)
+            }
             VStack(spacing: 0) {
                 Divider()
-                Text("Made with 🫶🏻 by not so boring not.people")
+                Text("Made with 🫶🏻 by PeakDeck")
                     .foregroundStyle(.secondary)
                     .padding(.top, 5)
                     .padding(.bottom, 7)
