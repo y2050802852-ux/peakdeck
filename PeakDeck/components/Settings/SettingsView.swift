@@ -2278,13 +2278,13 @@ func warningBadge(_ text: String, _ description: String) -> some View {
 struct WeatherLocationPicker: View {
     @ObservedObject var weather = WeatherManager.shared
     @State private var query = ""
-    @State private var results: [WeatherManager.GeoCity] = []
+    @State private var results: [WeatherManager.LocationSearchResult] = []
     @State private var isSearching = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                TextField("Search city (e.g. Hangzhou)", text: $query)
+                TextField("Search city or place (e.g. Suzhou University)", text: $query)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(search)
                 Button("Search") { search() }
@@ -2301,21 +2301,28 @@ struct WeatherLocationPicker: View {
             }
 
             if !results.isEmpty {
-                List(results) { city in
+                List(results) { place in
                     Button {
                         WeatherManager.setManualLocation(
-                            WeatherLocation(latitude: city.latitude, longitude: city.longitude, name: city.name))
+                            WeatherLocation(latitude: place.latitude, longitude: place.longitude, name: place.name))
                         results = []
                         query = ""
                     } label: {
-                        Text(city.displayName)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
+                        HStack(spacing: 5) {
+                            if place.isPOI {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(place.displayName)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
                     }
                     .buttonStyle(.plain)
                 }
                 .listStyle(.inset)
-                .frame(height: 140)
+                .frame(height: 170)
             }
 
             HStack {
@@ -2351,9 +2358,9 @@ struct WeatherLocationPicker: View {
         guard !trimmed.isEmpty else { return }
         isSearching = true
         Task {
-            let cities = await WeatherManager.searchCities(trimmed)
+            let places = await WeatherManager.searchPlaces(trimmed)
             await MainActor.run {
-                results = cities
+                results = places
                 isSearching = false
             }
         }

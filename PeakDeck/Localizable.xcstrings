@@ -24190,6 +24190,16 @@
           }
         }
       }
+    },
+    "Search city or place (e.g. Suzhou University)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索城市或具体地点（如 苏州大学未来学院）"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

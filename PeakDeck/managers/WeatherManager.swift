@@ -222,7 +222,7 @@ final class WeatherManager: ObservableObject {
         )
     }
 
-    // MARK: - Geocoding (manual city search)
+    // MARK: - Geocoding (manual city / place search)
 
     struct GeoCity: Identifiable, Decodable {
         let id: Int
@@ -234,6 +234,114 @@ final class WeatherManager: ObservableObject {
 
         var displayName: String {
             [name, admin1, country].compactMap { $0 }.joined(separator: " · ")
+        }
+    }
+
+    /// A location search result from either the QWeather GeoAPI (supports
+    /// POI-level places like a specific campus) or the Open-Meteo city
+    /// fallback. `isPOI` marks the finer-grained QWeather entries.
+    struct LocationSearchResult: Identifiable {
+        let id: String
+        let name: String
+        let region: String?
+        let latitude: Double
+        let longitude: Double
+        let isPOI: Bool
+
+        var displayName: String {
+            var parts = [name]
+            if let region, !region.isEmpty, region != name { parts.append(region) }
+            return parts.joined(separator: " · ")
+        }
+    }
+
+    /// Unified location search: with QWeather credentials the GeoAPI answers
+    /// with POI + city matches (specific places first); otherwise the
+    /// city-level Open-Meteo geocoder is used as the fallback.
+    static func searchPlaces(_ query: String) async -> [LocationSearchResult] {
+        if qweatherGeoConfigured {
+            let results = await searchQWeatherPlaces(query)
+            if !results.isEmpty { return results }
+        }
+        return await searchCities(query).map { city in
+            LocationSearchResult(
+                id: "om-\(city.id)",
+                name: city.name,
+                region: [city.admin1, city.country].compactMap { $0 }.joined(separator: ", "),
+                latitude: city.latitude,
+                longitude: city.longitude,
+                isPOI: false
+            )
+        }
+    }
+
+    private static var qweatherGeoConfigured: Bool {
+        !Defaults[.qweatherApiHost].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !Defaults[.qweatherApiKey].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private static func searchQWeatherPlaces(_ query: String) async -> [LocationSearchResult] {
+        async let cities = qweatherGeoLookup(path: "city/lookup", query: query, isPOI: false)
+        async let pois = qweatherGeoLookup(path: "poi/lookup", query: query, isPOI: true)
+        let (cityResults, poiResults) = await (cities, pois)
+        return poiResults + cityResults
+    }
+
+    private static func qweatherGeoLookup(path: String, query: String, isPOI: Bool) async -> [LocationSearchResult] {
+        struct GeoResponse: Decodable {
+            let code: String
+            let location: [Entry]?
+            let poi: [Entry]?
+
+            struct Entry: Decodable {
+                let id: String
+                let name: String
+                let lat: String
+                let lon: String
+                let adm1: String?
+                let adm2: String?
+            }
+        }
+        var host = Defaults[.qweatherApiHost].trimmingCharacters(in: .whitespacesAndNewlines)
+        while host.hasSuffix("/") { host.removeLast() }
+        guard host.contains("."), let base = URL(string: "https://\(host)/geo/v2/\(path)") else {
+            return []
+        }
+        var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "location", value: query),
+            URLQueryItem(name: "number", value: "10"),
+            URLQueryItem(name: "lang", value: geoLanguage),
+        ]
+        var request = URLRequest(url: components.url!, timeoutInterval: 10)
+        request.setValue(
+            Defaults[.qweatherApiKey].trimmingCharacters(in: .whitespacesAndNewlines),
+            forHTTPHeaderField: "X-QW-Api-Key"
+        )
+        guard let (data, _) = try? await fetchData(url: request.url!),
+              let payload = try? JSONDecoder().decode(GeoResponse.self, from: data),
+              payload.code == "200" else {
+            return []
+        }
+        let entries = payload.poi ?? payload.location ?? []
+        return entries.compactMap { entry in
+            guard let latitude = Double(entry.lat), let longitude = Double(entry.lon) else { return nil }
+            return LocationSearchResult(
+                id: isPOI ? "qw-poi-\(entry.id)" : "qw-city-\(entry.id)",
+                name: entry.name,
+                region: [entry.adm2, entry.adm1].compactMap { $0 }.joined(separator: " · "),
+                latitude: latitude,
+                longitude: longitude,
+                isPOI: isPOI
+            )
+        }
+    }
+
+    /// QWeather GeoAPI language for the selected app language.
+    private static var geoLanguage: String {
+        switch Defaults[.appLanguage] {
+        case .english: return "en"
+        case .simplifiedChinese, .system: return "zh"
         }
     }
 
