@@ -541,6 +541,8 @@ struct WeatherSettings: View {
     @Default(.idleWeatherEnabled) var idleWeatherEnabled
     @Default(.qweatherApiHost) var qweatherApiHost
     @Default(.qweatherApiKey) var qweatherApiKey
+    @State private var verifyResult: RainForecastManager.QWeatherVerifyResult?
+    @State private var isVerifying = false
 
     var body: some View {
         Form {
@@ -561,13 +563,54 @@ struct WeatherSettings: View {
                 Text("Used by both the idle weather icon and rain forecasts. Left empty, the location is auto-detected by IP.")
             }
             Section {
-                TextField("API Host", text: $qweatherApiHost)
-                TextField("API Key", text: $qweatherApiKey)
+                TextField("API Host", text: $qweatherApiHost, prompt: Text("e.g. abc123.re.qweatherapi.com"))
+                    .font(.system(.body, design: .monospaced))
+                SecureField("API Key", text: $qweatherApiKey)
+                    .font(.system(.body, design: .monospaced))
+                Button {
+                    isVerifying = true
+                    verifyResult = nil
+                    let host = qweatherApiHost
+                    let key = qweatherApiKey
+                    Task { @MainActor in
+                        let result = await RainForecastManager.verifyQWeather(host: host, key: key)
+                        isVerifying = false
+                        verifyResult = result
+                    }
+                } label: {
+                    HStack {
+                        if isVerifying {
+                            ProgressView().controlSize(.small)
+                        }
+                        Text("Verify connection")
+                    }
+                }
+                .disabled(qweatherApiHost.trimmingCharacters(in: .whitespaces).isEmpty
+                          || qweatherApiKey.isEmpty || isVerifying)
+                if let result = verifyResult {
+                    switch result {
+                    case .minuteNowcastOK:
+                        Text("✅ Connected — minute-level rain nowcast available; QWeather is now the data source")
+                            .foregroundStyle(.green)
+                    case .invalidKey:
+                        Text("⚠️ API Key rejected — check the key (401)")
+                            .foregroundStyle(.orange)
+                    case .permissionDenied:
+                        Text("⚠️ Permission denied — complete personal developer verification at console.qweather.com (403)")
+                            .foregroundStyle(.orange)
+                    case .unreachable:
+                        Text("❌ Can't reach the API Host — check spelling and your network")
+                            .foregroundStyle(.red)
+                    case .invalidHost:
+                        Text("❌ Invalid API Host format")
+                            .foregroundStyle(.red)
+                    }
+                }
             } header: {
                 Text("QWeather API (optional, recommended in China)")
             } footer: {
                 Text(
-                    "Register at dev.qweather.com and complete personal developer verification, then paste the dedicated API Host and Key from the console to unlock the minute-level rain nowcast."
+                    "The API Host is the dedicated domain QWeather assigns to your account — find it on the console Settings page (console.qweather.com/setting), it looks like abc123.re.qweatherapi.com. The API Key is created under Projects → Credentials. After filling both, use Verify connection: ✅ means the minute-level rain nowcast is available (requires personal developer verification) and the data source switches to QWeather immediately."
                 )
             }
         }

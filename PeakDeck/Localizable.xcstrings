@@ -24120,6 +24120,76 @@
           }
         }
       }
+    },
+    "Verify connection" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证连接"
+          }
+        }
+      }
+    },
+    "✅ Connected — minute-level rain nowcast available; QWeather is now the data source" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "✅ 连接成功，分钟级降水可用，数据源已切换为和风天气"
+          }
+        }
+      }
+    },
+    "⚠️ API Key rejected — check the key (401)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ API Key 无效（401），请检查 Key 是否填写正确"
+          }
+        }
+      }
+    },
+    "⚠️ Permission denied — complete personal developer verification at console.qweather.com (403)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ 权限不足（403），请先在 console.qweather.com 完成个人开发者认证"
+          }
+        }
+      }
+    },
+    "❌ Can't reach the API Host — check spelling and your network" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "❌ 无法连接 API Host，请检查拼写和网络"
+          }
+        }
+      }
+    },
+    "❌ Invalid API Host format" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "❌ API Host 格式不正确"
+          }
+        }
+      }
+    },
+    "The API Host is the dedicated domain QWeather assigns to your account — find it on the console Settings page (console.qweather.com/setting), it looks like abc123.re.qweatherapi.com. The API Key is created under Projects → Credentials. After filling both, use Verify connection: ✅ means the minute-level rain nowcast is available (requires personal developer verification) and the data source switches to QWeather immediately." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Host 是和风为每个账号分配的专属请求域名，在控制台的「设置」页（console.qweather.com/setting）查看，形如 abc123.re.qweatherapi.com；API Key 在「项目 → 凭据」里创建。两项填好后点「验证连接」：显示 ✅ 即代表分钟级降水可用（需先完成个人开发者认证），数据源会立即切换为和风天气。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

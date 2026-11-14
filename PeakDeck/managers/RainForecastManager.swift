@@ -302,21 +302,24 @@ final class RainForecastManager: ObservableObject {
         }
     }
 
+    /// Newer QWeather error shape: {"error": {"status": 403, "type": "...", ...}}
+    private struct QWeatherErrorBody: Decodable {
+        let error: ErrorInfo?
+        struct ErrorInfo: Decodable {
+            let status: Int?
+            let type: String?
+        }
+    }
+
     private func fetchQWeather(_ location: WeatherLocation) async -> [RainEvent]? {
-        var host = Defaults[.qweatherApiHost].trimmingCharacters(in: .whitespacesAndNewlines)
-        while host.hasSuffix("/") { host.removeLast() }
-        guard host.contains("."), let base = URL(string: "https://\(host)/v7/minutely/5m") else {
+        guard let request = Self.qweatherRequest(
+            host: Defaults[.qweatherApiHost],
+            key: Defaults[.qweatherApiKey],
+            at: location
+        ) else {
             logFailure("QWeather", detail: "invalid API host")
             return nil
         }
-        var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            // QWeather wants "longitude,latitude" with at most 2 decimals.
-            URLQueryItem(name: "location", value: String(format: "%.2f,%.2f", location.longitude, location.latitude)),
-            URLQueryItem(name: "lang", value: "zh"),
-        ]
-        var request = URLRequest(url: components.url!, timeoutInterval: 15)
-        request.setValue(Defaults[.qweatherApiKey], forHTTPHeaderField: "X-QW-Api-Key")
 
         guard let (data, _) = try? await URLSession.shared.data(for: request),
               let payload = try? JSONDecoder().decode(QWeatherMinutely.self, from: data) else {
@@ -341,6 +344,86 @@ final class RainForecastManager: ObservableObject {
             slots: slots, slotLength: 5 * 60, rainThreshold: 0.08,
             bridgeSlots: 3, dataEnd: dataEnd
         )
+    }
+
+    /// Builds the minute-level nowcast request; nil when the host is not a
+    /// plausible domain. Shared by the fetch path and settings verification.
+    private static func qweatherRequest(host: String, key: String, at location: WeatherLocation) -> URLRequest? {
+        var cleaned = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        while cleaned.hasSuffix("/") { cleaned.removeLast() }
+        guard cleaned.contains("."), let base = URL(string: "https://\(cleaned)/v7/minutely/5m") else {
+            return nil
+        }
+        var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            // QWeather wants "longitude,latitude" with at most 2 decimals.
+            URLQueryItem(name: "location", value: String(format: "%.2f,%.2f", location.longitude, location.latitude)),
+            URLQueryItem(name: "lang", value: "zh"),
+        ]
+        var request = URLRequest(url: components.url!, timeoutInterval: 15)
+        request.setValue(key.trimmingCharacters(in: .whitespacesAndNewlines), forHTTPHeaderField: "X-QW-Api-Key")
+        return request
+    }
+
+    /// Outcome of the settings-side connection test. QWeather reports errors
+    /// both as HTTP status and as a body code; the body code wins when present.
+    enum QWeatherVerifyResult: Equatable {
+        /// 200 — credentials valid and the minute-level nowcast is unlocked
+        /// (personal developer verification complete).
+        case minuteNowcastOK
+        /// 401 — the API Key is rejected.
+        case invalidKey
+        /// 403 — key accepted but the nowcast needs personal verification.
+        case permissionDenied
+        /// Host not reachable (typo, network) or response unparseable.
+        case unreachable
+        /// Not a plausible host string.
+        case invalidHost
+    }
+
+    /// Tests the entered QWeather credentials with a real minute-level
+    /// nowcast call, so the user learns exactly which layer is broken.
+    /// Uses the resolved weather location; falls back to Beijing purely to
+    /// have valid coordinates — the test is about credentials, not data.
+    /// QWeather errors come either as a legacy `code` body or as the newer
+    /// `{error: {status, type, ...}}` object; both are mapped here.
+    static func verifyQWeather(host: String, key: String) async -> QWeatherVerifyResult {
+        let location = await WeatherManager.resolveLocation()
+            ?? WeatherLocation(latitude: 39.92, longitude: 116.41, name: "Beijing")
+        guard let request = qweatherRequest(host: host, key: key, at: location) else {
+            return .invalidHost
+        }
+        guard let (data, response) = try? await URLSession.shared.data(for: request) else {
+            return .unreachable
+        }
+
+        if let payload = try? JSONDecoder().decode(QWeatherMinutely.self, from: data) {
+            switch payload.code {
+            case "200": return .minuteNowcastOK
+            case "401": return .invalidKey
+            case "403": return .permissionDenied
+            default: break
+            }
+        }
+        if let error = try? JSONDecoder().decode(QWeatherErrorBody.self, from: data),
+           let info = error.error, let status = info.status {
+            switch status {
+            case 401: return .invalidKey
+            case 403:
+                // "invalid-host" means the domain itself is wrong, not a
+                // permission problem with a correct host.
+                return info.type?.contains("invalid-host") == true ? .invalidHost : .permissionDenied
+            default: break
+            }
+        }
+        if let http = response as? HTTPURLResponse {
+            switch http.statusCode {
+            case 401: return .invalidKey
+            case 403: return .permissionDenied
+            default: break
+            }
+        }
+        return .unreachable
     }
 
     private static let qweatherDateFormatters: [DateFormatter] = {
