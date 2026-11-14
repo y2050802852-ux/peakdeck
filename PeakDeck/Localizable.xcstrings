@@ -23950,6 +23950,176 @@
           }
         }
       }
+    },
+    "Rain Forecast" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下雨播报"
+          }
+        }
+      }
+    },
+    "Announce rain forecasts below the notch" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在刘海下方播报下雨预报"
+          }
+        }
+      }
+    },
+    "Announcement sound" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提示音"
+          }
+        }
+      }
+    },
+    "Rain expected around %@, lasting about %@ · %lld%% chance" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预计 %@ 左右开始下雨，持续约 %@ · 概率 %lld%%"
+          }
+        }
+      }
+    },
+    "Rain expected around %@, lasting about %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预计 %@ 左右开始下雨，持续约 %@"
+          }
+        }
+      }
+    },
+    "It's raining now — expected to ease around %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经下起来了，预计 %@ 左右渐止"
+          }
+        }
+      }
+    },
+    "It's raining now — likely to stick around for the next two hours" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经下起来了，未来 2 小时内怕是停不了"
+          }
+        }
+      }
+    },
+    "%lld hr" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 小时"
+          }
+        }
+      }
+    },
+    "%lld hr %lld min" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 小时 %lld 分"
+          }
+        }
+      }
+    },
+    "Checks every 15 minutes and announces when rain is expected within 2 hours: start time, duration and chance — at most two banners per rain event. Configure QWeather in the Weather settings to use the minute-level radar nowcast; otherwise the Open-Meteo model is used, whose start time in China is only accurate to about an hour." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 15 分钟检查一次：预计未来 2 小时内降雨时播报开始时间、持续时长与概率，每场雨最多播报 2 条。在天气页配置和风天气后使用分钟级雷达临报（开始时间精确到几分钟）；否则使用 Open-Meteo 数值模型（中国区域开始时间精度约为 1 小时）。"
+          }
+        }
+      }
+    },
+    "Weather" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天气"
+          }
+        }
+      }
+    },
+    "Idle weather" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "闲置天气"
+          }
+        }
+      }
+    },
+    "Shows the current temperature and condition in the notch while it is idle." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刘海闲置时显示当前温度和天气状况。"
+          }
+        }
+      }
+    },
+    "Location" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置"
+          }
+        }
+      }
+    },
+    "Used by both the idle weather icon and rain forecasts. Left empty, the location is auto-detected by IP." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "闲置天气图标和下雨播报共用此定位。留空则按 IP 自动定位。"
+          }
+        }
+      }
+    },
+    "QWeather API (optional, recommended in China)" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "和风天气 API（可选，国内推荐）"
+          }
+        }
+      }
+    },
+    "Register at dev.qweather.com and complete personal developer verification, then paste the dedicated API Host and Key from the console to unlock the minute-level rain nowcast." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 dev.qweather.com 注册并完成个人开发者认证后，把控制台里的专属 API Host 和 Key 填进来，即可启用分钟级降水临报。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

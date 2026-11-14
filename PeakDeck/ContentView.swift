@@ -491,6 +491,24 @@ struct ContentView: View {
                               view.frame(width: barRowWidth, alignment: .center)
                           }
                       }
+
+                      // Rain announcement strip: same shape as the chime row,
+                      // with its own icon and longer on-screen time.
+                      if let rainMessage = coordinator.rainForecastMessage, vm.notchState == .closed, !vm.hideOnClosed {
+                          HStack(spacing: 6) {
+                              Image(systemName: "cloud.rain.fill")
+                              Text(rainMessage)
+                                  .lineLimit(1)
+                          }
+                          .font(.system(size: 12, weight: .medium))
+                          .foregroundStyle(.gray)
+                          .padding(.bottom, 10)
+                          .transition(.opacity)
+                          .animation(.smooth, value: coordinator.rainForecastMessage)
+                          .conditionalModifier(notificationInterceptor.displayedNotification != nil) { view in
+                              view.frame(width: barRowWidth, alignment: .center)
+                          }
+                      }
                   }
               }
               // fixedSize lets the HUD hug its content, but it also cancels

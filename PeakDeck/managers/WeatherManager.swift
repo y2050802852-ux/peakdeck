@@ -145,6 +145,14 @@ final class WeatherManager: ObservableObject {
         return try? JSONDecoder().decode(WeatherLocation.self, from: data)
     }
 
+    /// Resolves the active location: manual city override if set, otherwise
+    /// IP auto-detection. Shared with RainForecastManager, which follows the
+    /// same city setting as the weather icon.
+    static func resolveLocation() async -> WeatherLocation? {
+        if let manual = manualLocation { return manual }
+        return await locateByIP()
+    }
+
     static func setManualLocation(_ location: WeatherLocation?) {
         Defaults[.weatherManualLocationData] = location.flatMap { try? JSONEncoder().encode($0) }
         Task { @MainActor in

@@ -51,6 +51,12 @@ struct SettingsView: View {
                 NavigationLink(value: "Hourly Chime") {
                     Label("Hourly Chime", systemImage: "bell.fill")
                 }
+                NavigationLink(value: "Weather") {
+                    Label("Weather", systemImage: "sun.max.fill")
+                }
+                NavigationLink(value: "Rain Forecast") {
+                    Label("Rain Forecast", systemImage: "cloud.rain.fill")
+                }
 //                NavigationLink(value: "Downloads") {
 //                    Label("Downloads", systemImage: "square.and.arrow.down")
 //                }
@@ -99,6 +105,10 @@ struct SettingsView: View {
                     PomodoroSettings()
                 case "Hourly Chime":
                     HourlyChimeSettings()
+                case "Weather":
+                    WeatherSettings()
+                case "Rain Forecast":
+                    RainForecastSettings()
                 case "Shelf":
                     Shelf()
                 case "Notifications":
@@ -495,6 +505,74 @@ struct HourlyChimeSettings: View {
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Hourly Chime")
+    }
+}
+
+struct RainForecastSettings: View {
+    @Default(.rainForecastEnabled) var rainForecastEnabled
+    @Default(.rainForecastSoundName) var rainForecastSoundName
+
+    var body: some View {
+        Form {
+            Section {
+                Defaults.Toggle(key: .rainForecastEnabled) {
+                    Text("Announce rain forecasts below the notch")
+                }
+            } header: {
+                Text("General")
+            } footer: {
+                Text(
+                    "Checks every 15 minutes and announces when rain is expected within 2 hours: start time, duration and chance — at most two banners per rain event. Configure QWeather in the Weather settings to use the minute-level radar nowcast; otherwise the Open-Meteo model is used, whose start time in China is only accurate to about an hour."
+                )
+            }
+            Section {
+                SoundPicker(selection: $rainForecastSoundName)
+                    .disabled(!rainForecastEnabled)
+            } header: {
+                Text("Announcement sound")
+            }
+        }
+        .accentColor(.effectiveAccent)
+        .navigationTitle("Rain Forecast")
+    }
+}
+
+struct WeatherSettings: View {
+    @Default(.idleWeatherEnabled) var idleWeatherEnabled
+    @Default(.qweatherApiHost) var qweatherApiHost
+    @Default(.qweatherApiKey) var qweatherApiKey
+
+    var body: some View {
+        Form {
+            Section {
+                Defaults.Toggle(key: .idleWeatherEnabled) {
+                    Text("Show weather while inactive")
+                }
+            } header: {
+                Text("Idle weather")
+            } footer: {
+                Text("Shows the current temperature and condition in the notch while it is idle.")
+            }
+            Section {
+                WeatherLocationPicker()
+            } header: {
+                Text("Location")
+            } footer: {
+                Text("Used by both the idle weather icon and rain forecasts. Left empty, the location is auto-detected by IP.")
+            }
+            Section {
+                TextField("API Host", text: $qweatherApiHost)
+                TextField("API Key", text: $qweatherApiKey)
+            } header: {
+                Text("QWeather API (optional, recommended in China)")
+            } footer: {
+                Text(
+                    "Register at dev.qweather.com and complete personal developer verification, then paste the dedicated API Host and Key from the console to unlock the minute-level rain nowcast."
+                )
+            }
+        }
+        .accentColor(.effectiveAccent)
+        .navigationTitle("Weather")
     }
 }
 
@@ -1504,7 +1582,6 @@ struct Appearance: View {
     @Default(.useMusicVisualizer) var useMusicVisualizer
     @Default(.customVisualizers) var customVisualizers
     @Default(.selectedVisualizer) var selectedVisualizer
-    @Default(.idleWeatherEnabled) var idleWeatherEnabled
 
     let icons: [String] = ["logo2"]
     @State private var selectedIcon: String = "logo2"
@@ -1728,11 +1805,6 @@ struct Appearance: View {
                     Text("Square")
                         .tag(MirrorShapeEnum.rectangle)
                 }
-                Defaults.Toggle(key: .idleWeatherEnabled) {
-                    Text("Show weather while inactive")
-                }
-                WeatherLocationPicker()
-                    .disabled(!idleWeatherEnabled)
             } header: {
                 HStack {
                     Text("Additional features")

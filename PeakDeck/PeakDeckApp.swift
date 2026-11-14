@@ -273,6 +273,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator.showHourlyChime(message)
     }
 
+    /// Rain announcements follow the same display rules as the hourly chime
+    /// (system main display when "show on all displays" is on, hidden in
+    /// fullscreen / open states — sound still plays).
+    @MainActor
+    func showRainForecastVisual(_ message: String) {
+        let viewModel = popupViewModel
+        guard viewModel.notchState == .closed, !viewModel.hideOnClosed else { return }
+        coordinator.showRainForecast(message)
+    }
+
     /// Popup targets (pomodoro reminder, hourly chime banner) go to the
     /// system main display when "show on all displays" is on — the
     /// focus-derived `selectedScreenUUID` may point at a secondary screen.
@@ -532,8 +542,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name.rainForecastTriggered, object: nil, queue: nil
+        ) { [weak self] note in
+            Task { @MainActor in
+                guard let message = note.userInfo?["message"] as? String else { return }
+                self?.showRainForecastVisual(message)
+            }
+        }
+
         // Start the hourly chime scheduler when the feature is enabled.
         _ = HourlyChimeManager.shared
+        // Start the rain forecast scheduler when the feature is enabled.
+        _ = RainForecastManager.shared
 
         if !Defaults[.showOnAllDisplays] {
             let viewModel = self.vm

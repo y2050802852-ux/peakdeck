@@ -331,6 +331,27 @@ class PeakViewCoordinator: ObservableObject {
             }
         }
     }
+
+    /// Text of the rain forecast banner shown below the notch; nil hides it.
+    @Published var rainForecastMessage: String?
+    private var rainForecastTask: Task<Void, Never>?
+
+    /// Shows the rain forecast banner for 10 seconds — the announcement is
+    /// longer than the chime text and worth reading, but still fades on its
+    /// own without any interaction.
+    func showRainForecast(_ message: String) {
+        rainForecastTask?.cancel()
+        withAnimation(.smooth) {
+            rainForecastMessage = message
+        }
+        rainForecastTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(.smooth) {
+                self.rainForecastMessage = nil
+            }
+        }
+    }
     
     func showEmpty() {
         currentView = .home

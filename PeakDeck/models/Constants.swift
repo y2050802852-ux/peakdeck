@@ -210,6 +210,19 @@ extension Defaults.Keys {
     /// System sound name for the hourly chime; "none" is silent.
     static let hourlyChimeSoundName = Key<String>("hourlyChimeSoundName", default: "Glass")
 
+    // MARK: Rain Forecast
+    static let rainForecastEnabled = Key<Bool>("rainForecastEnabled", default: false)
+    /// System sound name for the rain announcement; "none" is silent.
+    static let rainForecastSoundName = Key<String>("rainForecastSoundName", default: "Pop")
+    /// QWeather (和风天气) dedicated API host, e.g. "abc123.re.qweatherapi.com".
+    /// When host and key are both set, minute-level radar nowcast is used
+    /// instead of the Open-Meteo fallback.
+    static let qweatherApiHost = Key<String>("qweatherApiHost", default: "")
+    static let qweatherApiKey = Key<String>("qweatherApiKey", default: "")
+    /// Hidden debug hook: setting it to any non-empty value fires one canned
+    /// rain banner shortly after launch, for visual verification only.
+    static let rainForecastDebugPreset = Key<String>("rainForecastDebugPreset", default: "")
+
     // MARK: Fullscreen Media Detection
     static let hideNotchOption = Key<HideNotchOption>("hideNotchOption", default: .nowPlayingOnly)
     
