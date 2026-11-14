@@ -24200,6 +24200,16 @@
           }
         }
       }
+    },
+    "Search city or place" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索城市或具体地点"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

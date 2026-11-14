@@ -2284,7 +2284,7 @@ struct WeatherLocationPicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                TextField("Search city or place (e.g. Suzhou University)", text: $query)
+                TextField("Search city or place", text: $query)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(search)
                 Button("Search") { search() }
@@ -2300,29 +2300,44 @@ struct WeatherLocationPicker: View {
                 }
             }
 
+            // A List nested inside a Form collapses right after it appears on
+            // macOS (the Form's layout pass clips nested scroll views), so
+            // the results use a plain bounded ScrollView instead.
             if !results.isEmpty {
-                List(results) { place in
-                    Button {
-                        WeatherManager.setManualLocation(
-                            WeatherLocation(latitude: place.latitude, longitude: place.longitude, name: place.name))
-                        results = []
-                        query = ""
-                    } label: {
-                        HStack(spacing: 5) {
-                            if place.isPOI {
-                                Image(systemName: "mappin.and.ellipse")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(results) { place in
+                            Button {
+                                WeatherManager.setManualLocation(
+                                    WeatherLocation(latitude: place.latitude, longitude: place.longitude, name: place.name))
+                                results = []
+                                query = ""
+                            } label: {
+                                HStack(spacing: 5) {
+                                    if place.isPOI {
+                                        Image(systemName: "mappin.and.ellipse")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text(place.displayName)
+                                        .lineLimit(1)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 6)
                             }
-                            Text(place.displayName)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            Divider()
                         }
                     }
-                    .buttonStyle(.plain)
                 }
-                .listStyle(.inset)
                 .frame(height: 170)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(.quaternary, lineWidth: 1)
+                )
             }
 
             HStack {
